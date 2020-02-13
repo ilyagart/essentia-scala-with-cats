@@ -1,5 +1,5 @@
 *.idea
 /project/
 /target/
-src/main/scala/sandbox/Test.sc
+src/main/scala/sandbox/Typeclasses simplified.sc
 src/main/scala/sandbox/Main.scala

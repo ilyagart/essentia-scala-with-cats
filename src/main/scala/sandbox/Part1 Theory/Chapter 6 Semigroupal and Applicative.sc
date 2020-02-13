@@ -1,4 +1,15 @@
-import cats.syntax.either._ // for catchOnly
+import cats.data.Validated
+import cats.implicits._
+import cats.instances.list._
+import cats.instances.option._
+import cats.syntax.apply._
+import cats.syntax.either._
+import cats.{Monoid, Semigroupal}
+import scala.concurrent.ExecutionContext.global
+import scala.concurrent.duration._
+
+import scala.concurrent.{Await, Future} // for Semigroupal
+
 def parseInt(str: String): Either[String, Int] =
   Either
     .catchOnly[NumberFormatException](str.toInt)
@@ -10,8 +21,6 @@ for {
 } yield (a + b + c)
 // res1: scala.util.Either[String,Int] = Left(Couldn't read a)
 
-import cats.Semigroupal
-import cats.instances.option._ // for Semigroupal
 Semigroupal[Option].product(Some(123), Some("abc"))
 // res0: Option[(Int, String)] = Some((123,abc))
 Semigroupal[Option].product(None, Some("abc"))
@@ -26,7 +35,6 @@ Semigroupal.map3(Option(1), Option(2), Option(3))(_ + _ + _)
 // res5: Option[Int] = Some(6)
 Semigroupal.map2(Option(1), Option.empty[Int])(_ + _)
 // res6: Option[Int] = None
-import cats.syntax.apply._ // for tupled and mapN
 (Option(123), Option("abc")).tupled
 // res7: Option[(Int, String)] = Some((123,abc))
 (Option(123), Option("abc"), Option(true)).tupled
@@ -52,12 +60,7 @@ val add: (Int, Int) => Int = (a, b) => a + b
 // required: (String, Boolean) => ?
 // (Option("cats"), Option(true)).mapN(add)
 //
-import cats.Monoid
-import cats.instances.int._
-import cats.instances.invariant._
-import cats.instances.list._
-import cats.instances.string._
-import cats.syntax.apply._ // for imapN
+
 case class Cat(name: String, yearOfBirth: Int, favoriteFoods: List[String])
 val tupleToCat: (String, Int, List[String]) => Cat = Cat.apply
 
@@ -68,37 +71,27 @@ implicit val catMonoid: Monoid[Cat] =
   (Monoid[String], Monoid[Int], Monoid[List[String]])
     .imapN(tupleToCat)(catToTuple)
 
-import cats.syntax.semigroup._ // for |+|
 val garfield = Cat("Garfield", 1978, List("Lasagne"))
 val heathcliff = Cat("Heathcliff", 1988, List("Junk Food"))
 garfield |+| heathcliff
 // res17: Cat = Cat(GarfieldHeathcliff,3966,List(Lasagne, Junk Food))
-import cats.Semigroupal
-import cats.instances.future._
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent._
-import scala.concurrent.duration._
-import scala.language.higherKinds
 
 val futurePair = Semigroupal[Future].product(Future("Hello"), Future(123))
 Await.result(futurePair, 1.second)
 // res1: (String, Int) = (Hello,123)
-import cats.syntax.apply._ // for mapN
+
 case class Cat3(name: String, yearOfBirth: Int, favoriteFoods: List[String])
 val futureCat3 =
   (Future("Garfield"), Future(1978), Future(List("Lasagne"))).mapN(Cat3.apply)
 Await.result(futureCat3, 1.second)
 // res4: Cat = Cat(Garfield,1978,List(Lasagne))
-import cats.instances.list._ // for Semigroupal
+
 Semigroupal[List].product(List(1, 2), List(3, 4))
 // res5: List[(Int, Int)] = List((1,3), (1,4), (2,3), (2,4))
-import cats.implicits._
 
 type ErrorOr[A] = Either[Vector[String], A]
 Semigroupal[ErrorOr].product(Left(Vector("Error 1")), Left(Vector("Error 2")))
 // res7: ErrorOr[(Nothing, Nothing)] = Left(Vector(Error 1))
-import cats.Monad
 
 def product[M[_]: Monad, A, B](x: M[A], y: M[B]): M[(A, B)] =
   for {
@@ -112,7 +105,6 @@ def product2[M[_]: Monad, A, B](x: M[A], y: M[B]): M[(A, B)] =
 product(List(1, 2), List(3, 4))
 // res12: List[(Int, Int)] = List((1,3), (1,4), (2,3), (2,4))
 product2(List(1, 3), List(2, 4))
-import cats.data.Validated
 
 type AllErrorsOr[A] = Validated[List[String], A]
 
@@ -131,14 +123,11 @@ val v = Validated.valid[List[String], Int](123)
 val i = Validated.invalid[List[String], Int](List("Badness"))
 // i: cats.data.Validated[List[String],Int] = Invalid(List(Badness))
 
-import cats.syntax.validated._ // for valid and invalid
 123.valid[List[String]]
 // res2: cats.data.Validated[List[String],Int] = Valid(123)
 List("Badness").invalid[Int]
 // res3: cats.data.Validated[List[String],Int] = Invalid(List(Badness))
 
-import cats.syntax.applicative._ // for pure
-import cats.syntax.applicativeError._ // for raiseError
 type ErrorsOr[A] = Validated[List[String], A]
 123.pure[ErrorsOr]
 // res5: ErrorsOr[Int] = Valid(123)
@@ -154,11 +143,87 @@ Validated.fromEither[String, Int](Left("Badness"))
 // res10: cats.data.Validated[String,Int] = Invalid(Badness)
 Validated.fromOption[String, Int](None, "Badness")
 // res11: cats.data.Validated[String,Int] = Invalid(Badness)
-import cats.syntax.apply._ // for tupled
-import cats.instances.string._ // for Semigroup
+
 type AllErrorsOr[A] = Validated[String, A]
 //("Error 1".invalid[Int], "Error 2".invalid[Int]).tupled
 // res14: cats.data.Validated[String,(Int, Int)] = Invalid(Error 1Error 2)
-import cats.instances.vector._ // for Semigroupal
-(Vector(404).invalid[Int], Vector(500).invalid[Int]).tupled
+
+//(Vector(404).invalid[Int], Vector(500).invalid[Int]).tupled
 // res15: cats.data.Validated[scala.collection.immutable.Vector[Int],(Int, Int)] = Invalid(Vector(404, 500))
+
+//(
+//  NonEmptyVector.of("Error 1").invalid[Int],
+//  NonEmptyVector.of("Error 2").invalid[Int]
+//).tupled
+// res16: cats.data.Validated[cats.data.NonEmptyVector[String],(Int,Int)] =
+// Invalid(NonEmptyVector(Error 1, Error 2))
+123.valid.map(_ * 100)
+// res17: cats.data.Validated[Nothing,Int] = Valid(12300)
+"?".invalid.leftMap(_.toString)
+// res18: cats.data.Validated[String,Nothing] = Invalid(?)
+123.valid[String].bimap(_ + "!", _ * 100)
+// res19: cats.data.Validated[String,Int] = Valid(12300)
+"?".invalid[Int].bimap(_ + "!", _ * 100)
+// res20: cats.data.Validated[String,Int] = Invalid(?!)
+//CAN'T USE FLATMAP ON VALIDATED SINCE IT'S NOT A MONAD!
+32.valid.andThen { a =>
+  10.valid.map { b =>
+    a + b
+  }
+}
+// res21: cats.data.Validated[Nothing,Int] = Valid(42)
+//can use andThen instead
+
+"Badness".invalid[Int]
+// res22: cats.data.Validated[String,Int] = Invalid(Badness)
+"Badness".invalid[Int].toEither
+// res23: Either[String,Int] = Left(Badness)
+"Badness".invalid[Int].toEither.toValidated
+// res24: cats.data.Validated[String,Int] = Invalid(Badness)
+123.valid[String].ensure("Negative!")(_ > 0)
+//res25: cats.data.Validated[String,Int] = Valid(123)
+"fail".invalid[Int].getOrElse(0)
+// res26: Int = 0
+"fail".invalid[Int].fold(_ + "!!!", _.toString)
+// res27: String = fail!!!
+
+case class User(name: String, age: Int)
+
+type FormData = Map[String, String]
+type FailFast[A] = Either[List[String], A]
+type FailSlow[A] = Validated[List[String], A]
+
+def getValue(name: String)(data: FormData): FailFast[String] = {
+  data.get(name).toRight(List(s"name field is not specified"))
+}
+
+type NumFmtExn = NumberFormatException
+
+def parseInt(name: String)(data: String): FailFast[Int] = {
+  Either
+    .catchOnly[NumFmtExn](data.toInt)
+    .leftMap(_ => List(s"name must be an integer"))
+}
+
+def nonBlank(name: String)(data: String): FailFast[String] =
+  Right(data).ensure(List(s"name cannot be blank"))(_.nonEmpty)
+def nonNegative(name: String)(data: Int): FailFast[Int] =
+  Right(data).ensure(List(s"name must be non-negative"))(_ >= 0)
+
+def readName(data: FormData): FailFast[String] =
+  getValue("name")(data).flatMap(nonBlank("name"))
+
+def readAge(data: FormData): FailFast[Int] =
+  getValue("age")(data)
+    .flatMap(nonBlank("age"))
+    .flatMap(parseInt("age"))
+    .flatMap(nonNegative("age"))
+
+def readUser(data: FormData): FailSlow[User] = {
+  (readName(data).toValidated, readAge(data).toValidated)
+}.mapN(User.apply)
+
+readUser(Map("name" -> "Dave", "age" -> "37"))
+// res48: FailSlow[User] = Valid(User(Dave,37))
+readUser(Map("age" -> "-1"))
+// res49: FailSlow[User] = Invalid(List(name field not specified, age must be non-negative))
