@@ -17,7 +17,7 @@ foldMap("Hello world!".toVector)(_.toString.toUpperCase)
 // res6: String = HELLO WORLD!
 
 /*
-1. we start with an ini􀦞al list of all the data we need to process;
+1. we start with an initial list of all the data we need to process;
 2. we divide the data into batches, sending one batch to each CPU;
 3. the CPUs run a batch-level map phase in parallel;
 4. the CPUs run a batch-level reduce phase in parallel, producing a local
