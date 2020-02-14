@@ -1,4 +1,3 @@
-//import cats.{Functor, Semigroupal}
 trait Semigroup[A] {
   def combine(x: A, y: A): A
 }
